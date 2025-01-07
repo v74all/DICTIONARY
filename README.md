@@ -28,7 +28,7 @@ V7lthronyx DICTIONARY is an advanced password generation tool designed for secur
 1. **Clone the repository**:
     ```bash
     git clone https://github.com/v74all/DICTIONARY.git
-    cd v7lthronyx_DICTIONARY
+    cd DICTIONARY
     ```
 
 2. **Install dependencies**:
@@ -39,7 +39,7 @@ V7lthronyx DICTIONARY is an advanced password generation tool designed for secur
 1. **کلون کردن مخزن**:
     ```bash
     git clone https://github.com/v74all/DICTIONARY.git
-    cd v7lthronyx_DICTIONARY
+    cd DICTIONARY
     ```
 
 2. **نصب وابستگی‌ها**:
