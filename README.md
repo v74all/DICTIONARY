@@ -38,7 +38,7 @@ V7lthronyx DICTIONARY is an advanced password generation tool designed for secur
 
 1. **کلون کردن مخزن**:
     ```bash
-    git clone https://github.com/yourusername/v7lthronyx_DICTIONARY.git
+    git clone https://github.com/v74all/DICTIONARY.git
     cd v7lthronyx_DICTIONARY
     ```
 
