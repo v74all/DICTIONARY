@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Runtime logs
+*.log
+
+# Generated wordlists / trained models
+*.txt.gz
+trained_model*
+output/
+
+# Local env / IDE
+.venv/
+venv/
+.env
+.vscode/
+.idea/

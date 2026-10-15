@@ -8,7 +8,7 @@ from tqdm import tqdm
 from utils import generate_password_list
 from zxcvbn import zxcvbn
 from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import LSTM, Dense, Embedding, Dropout, Bidirectional, Conv1D
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional, Input
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
 class DictionaryGenerator:
@@ -80,9 +80,13 @@ class DictionaryGenerator:
         return X, y, len(self.char_to_idx)
 
     def create_model(self, vocab_size):
+        # The training tensors (see preprocess_data) and the generation input
+        # (see generate_passwords_with_model) are one-hot encoded with shape
+        # (max_sequence_length, vocab_size), so the network consumes that
+        # directly. An Embedding layer is deliberately not used here: it expects
+        # integer-indexed sequences, which would not match the one-hot tensors.
         model = Sequential([
-            Embedding(vocab_size, self.char_embedding_size, 
-                     input_length=self.max_sequence_length),
+            Input(shape=(self.max_sequence_length, vocab_size)),
             Bidirectional(LSTM(256, return_sequences=True)),
             Dropout(0.2),
             Bidirectional(LSTM(128, return_sequences=True)),
@@ -118,7 +122,7 @@ class DictionaryGenerator:
                 ModelCheckpoint(
                     self.model_path,
                     monitor='val_loss',
-                    save_best_weights_only=True
+                    save_best_only=True
                 )
             ]
 
@@ -380,11 +384,18 @@ class DictionaryGenerator:
                 ]
                 passwords.extend(transformations)
 
-        unique_passwords = list(dict.fromkeys(passwords))[:max_combinations]
-        
-        strong_passwords = [pwd for pwd in unique_passwords if self.is_strong_password(pwd) and len(pwd) >= min_length]
-        
-        return strong_passwords
+        # Filter for strength first, then cap at max_combinations. Capping
+        # before filtering would keep only the first N raw candidates — which
+        # are dominated by weak variants — and could discard every strong
+        # password, returning an empty list for small --max values.
+        unique_passwords = list(dict.fromkeys(passwords))
+
+        strong_passwords = [
+            pwd for pwd in unique_passwords
+            if len(pwd) >= min_length and self.is_strong_password(pwd)
+        ]
+
+        return strong_passwords[:max_combinations]
 
     def save_to_file(self, password_list: List[str], file_name: str, compress: bool = False):
         filtered_passwords = [pwd for pwd in password_list if "<SPORTS_TEAM/HOBBY>" not in pwd]

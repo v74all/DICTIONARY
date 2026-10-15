@@ -31,7 +31,7 @@ class HelpDialog(QDialog):
         self.setLayout(layout)
 
 class PasswordGeneratorGUI(QMainWindow):
-    VERSION = "v1.5 Beta"
+    VERSION = "v1.5.1 Beta"
     
     def __init__(self):
         super().__init__()

@@ -1,4 +1,4 @@
-# V7lthronyx DICTIONARY v1.5 Beta - Advanced Password Generation Tool
+# V7lthronyx DICTIONARY v1.5.1 Beta - Advanced Password Generation Tool
 
 ## Overview
 
