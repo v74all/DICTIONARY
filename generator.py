@@ -216,7 +216,7 @@ class DictionaryGenerator:
 
     def apply_combination_method(self, word: str, method: str) -> List[str]:
         results = []
-        years = range(1960, 2024)
+        years = range(1960, 2027)
         common_numbers = ['123', '1234', '12345', '111', '000', '666', '777', '888', '999']
         special_chars = ['!', '@', '#', '$', '%', '&', '*', '?', '.', '-', '_', '+']
         
@@ -325,16 +325,19 @@ class DictionaryGenerator:
         seen = set()
         return [x for x in results if not (x in seen or seen.add(x))]
 
-    def generate_personalized_list(self, user_data: Dict[str, List[str]], max_combinations: int = 100000, 
-                                 use_ml: bool = False,
-                                 combination_method: str = 'basic',
-                                 custom_pattern: str = '',
-                                 min_length: int = 8) -> List[str]:
-        user_info = [item for sublist in user_data.values() for item in sublist]
-        user_info = self.sanitize_user_info(user_info)
-        
+    def _build_candidates(self, user_info: List[str],
+                          use_ml: bool = False,
+                          combination_method: str = 'basic',
+                          custom_pattern: str = '') -> List[str]:
+        """Build the deduplicated pool of candidate passwords.
+
+        This is the shared, deterministic core used by both
+        generate_personalized_list (which then applies the strength filter)
+        and estimate_size (which only needs the pool size). Keeping it in one
+        place prevents the two paths from drifting apart.
+        """
         passwords = []
-        
+
         for word in user_info:
             if combination_method == 'random':
                 methods = ['basic', 'advanced', 'complex', 'l33t']
@@ -352,14 +355,14 @@ class DictionaryGenerator:
 
         pattern_passwords = self.generate_patterns(user_info)
         passwords.extend(pattern_passwords)
-        
+
         if use_ml and self.model and user_info:
             model_passwords = self.generate_passwords_with_model(user_info[0])
             passwords.extend(model_passwords)
-        
+
         related_combinations = []
         words = user_info.copy()
-        
+
         for i in range(len(words)):
             for j in range(i + 1, len(words)):
                 word1, word2 = words[i], words[j]
@@ -384,18 +387,58 @@ class DictionaryGenerator:
                 ]
                 passwords.extend(transformations)
 
+        return list(dict.fromkeys(passwords))
+
+    def generate_personalized_list(self, user_data: Dict[str, List[str]], max_combinations: int = 100000,
+                                 use_ml: bool = False,
+                                 combination_method: str = 'basic',
+                                 custom_pattern: str = '',
+                                 min_length: int = 8) -> List[str]:
+        user_info = [item for sublist in user_data.values() for item in sublist]
+        user_info = self.sanitize_user_info(user_info)
+
+        unique_passwords = self._build_candidates(
+            user_info,
+            use_ml=use_ml,
+            combination_method=combination_method,
+            custom_pattern=custom_pattern,
+        )
+
         # Filter for strength first, then cap at max_combinations. Capping
         # before filtering would keep only the first N raw candidates — which
         # are dominated by weak variants — and could discard every strong
         # password, returning an empty list for small --max values.
-        unique_passwords = list(dict.fromkeys(passwords))
-
         strong_passwords = [
             pwd for pwd in unique_passwords
             if len(pwd) >= min_length and self.is_strong_password(pwd)
         ]
 
         return strong_passwords[:max_combinations]
+
+    def estimate_size(self, user_data: Dict[str, List[str]], max_combinations: int = 100000,
+                      combination_method: str = 'basic',
+                      custom_pattern: str = '') -> int:
+        """Estimate how many passwords generation would yield.
+
+        Returns the size of the deduplicated candidate pool (before the
+        zxcvbn strength filter, which is the expensive step), capped at
+        max_combinations. This gives a fast upper bound on the output size
+        without writing a file or scoring every candidate.
+        """
+        user_info = [item for sublist in user_data.values() for item in sublist]
+        user_info = self.sanitize_user_info(user_info)
+
+        # ML is intentionally skipped here: it only adds a handful of
+        # candidates and loading/running the model would defeat the point of
+        # a quick estimate.
+        candidates = self._build_candidates(
+            user_info,
+            use_ml=False,
+            combination_method=combination_method,
+            custom_pattern=custom_pattern,
+        )
+
+        return min(len(candidates), max_combinations)
 
     def save_to_file(self, password_list: List[str], file_name: str, compress: bool = False):
         filtered_passwords = [pwd for pwd in password_list if "<SPORTS_TEAM/HOBBY>" not in pwd]

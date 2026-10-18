@@ -1,10 +1,18 @@
-# V7lthronyx DICTIONARY v1.5.1 Beta - Advanced Password Generation Tool
+# V7lthronyx DICTIONARY v1.7.0 Beta - Advanced Password Generation Tool
 
 ## Overview
 
 V7lthronyx DICTIONARY is an advanced password generation tool designed for security research purposes. It combines user-provided data, common password datasets, and advanced patterns, with optional machine learning capabilities to generate strong and personalized password lists.
 
 دیکشنری V7lthronyx یک ابزار پیشرفته برای تولید رمز عبور است که برای اهداف تحقیقاتی امنیتی طراحی شده است. این ابزار با ترکیب داده‌های ارائه شده توسط کاربر، مجموعه‌های رمز عبور رایج و الگوهای پیشرفته، با قابلیت‌های اختیاری یادگیری ماشین، لیست‌های رمز عبور قوی و شخصی‌سازی شده تولید می‌کند.
+
+## Screenshots | تصاویر
+
+<p align="center">
+  <img src="docs/screenshots/gui-matrix-theme.png" width="420" alt="DICTIONARY GUI - Matrix theme">
+  <img src="docs/screenshots/gui-dracula-theme.png" width="420" alt="DICTIONARY GUI - Dracula theme">
+</p>
+<p align="center"><sub>The GUI now ships with 6 selectable themes (Matrix, Dracula, Cyberpunk, Amber, Nord, Light), remembered across launches — see <a href="docs/screenshots/gui-nord-theme.png">Nord theme</a>.</sub></p>
 
 ## Features
 
@@ -14,6 +22,8 @@ V7lthronyx DICTIONARY is an advanced password generation tool designed for secur
 - **Machine Learning**: Optionally use AI to predict and generate password patterns.
 - **Output Compression**: Save results in a compressed format.
 - **Size Estimation**: Preview the expected size of the generated password list.
+- **Theme Switcher**: Choose from 6 GUI themes (Matrix, Dracula, Cyberpunk, Amber, Nord, Light) — your choice is remembered next time you open the app.
+- **Responsive GUI**: Password generation now runs on a background thread, so the window stays responsive on large runs instead of freezing.
 
 - **یکپارچه‌سازی داده‌های کاربر**: تولید رمز عبور بر اساس اطلاعات شخصی مانند نام‌ها، تاریخ تولد و غیره.
 - **استفاده از مجموعه داده‌ها**: استفاده از مجموعه‌های رمز عبور رایج برای بهبود تولید رمز عبور.
@@ -22,6 +32,8 @@ V7lthronyx DICTIONARY is an advanced password generation tool designed for secur
 - **بررسی نفوذ**: تأیید رمزهای عبور تولید شده در برابر رمزهای عبور نفوذ شده شناخته شده.
 - **فشرده‌سازی خروجی**: ذخیره نتایج در قالب فشرده.
 - **برآورد اندازه**: پیش‌نمایش اندازه مورد انتظار لیست رمز عبور تولید شده.
+- **تغییر پوسته**: انتخاب از میان ۶ پوسته گرافیکی (Matrix، Dracula، Cyberpunk، Amber، Nord، Light) — انتخاب شما برای اجرای بعدی ذخیره می‌شود.
+- **رابط کاربری واکنش‌گرا**: تولید رمز عبور اکنون در پس‌زمینه اجرا می‌شود، پس پنجره در حین تولید حجم زیاد قفل نمی‌شود.
 
 ## Installation
 
@@ -119,6 +131,7 @@ python main.py --gui
 - **Advanced Options**: Enable machine learning, breach check, output compression, and size estimation.
 - **Combination Methods**: Choose from various password combination methods or define a custom pattern.
 - **Generate Passwords**: Generate and view the password list directly in the GUI.
+- **Theme Selector**: Switch the GUI's look instantly from the top toolbar.
 
 #### ویژگی‌های GUI
 
@@ -128,6 +141,7 @@ python main.py --gui
 - **گزینه‌های پیشرفته**: فعال کردن یادگیری ماشین، بررسی نفوذ، فشرده‌سازی خروجی و برآورد اندازه.
 - **روش‌های ترکیب**: انتخاب از میان روش‌های مختلف ترکیب رمز عبور یا تعریف یک الگوی سفارشی.
 - **تولید رمزهای عبور**: تولید و مشاهده لیست رمز عبور به طور مستقیم در GUI.
+- **انتخاب پوسته**: تغییر فوری ظاهر برنامه از نوار ابزار بالا.
 
 ## Help
 

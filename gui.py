@@ -1,10 +1,66 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QTextEdit, QFileDialog, QCheckBox, QLineEdit, QMessageBox, QDialog, QSizePolicy, QComboBox
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSettings, QThread, pyqtSignal
 from PyQt5.QtGui import QFont
 from generator import DictionaryGenerator
 import logging
 from translations import TRANSLATIONS
+from theme import Theme
+
+
+class GenerationWorker(QThread):
+    """Runs password generation off the GUI thread.
+
+    generate_personalized_list() scores every candidate with zxcvbn and
+    load_or_train_model() can train an LSTM model — both can take long
+    enough to freeze the window if run on the GUI thread, with no way for
+    the user to see progress or even repaint the window in the meantime.
+    """
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(list, str, bool)
+    failed = pyqtSignal(str)
+
+    def __init__(self, datasets, use_ml, user_data_dict, max_combinations,
+                 combination_method, custom_pattern, min_length,
+                 output_file, compress_output, model_path="password_model.keras"):
+        super().__init__()
+        self.datasets = datasets
+        self.use_ml = use_ml
+        self.user_data_dict = user_data_dict
+        self.max_combinations = max_combinations
+        self.combination_method = combination_method
+        self.custom_pattern = custom_pattern
+        self.min_length = min_length
+        self.output_file = output_file
+        self.compress_output = compress_output
+        self.model_path = model_path
+
+    def run(self):
+        try:
+            self.progress.emit("Initializing password generator...")
+            generator = DictionaryGenerator(base_datasets=self.datasets, model_path=self.model_path)
+
+            if self.use_ml:
+                self.progress.emit("Loading/training ML model...")
+                generator.load_or_train_model()
+
+            self.progress.emit("Generating passwords...")
+            passwords = generator.generate_personalized_list(
+                user_data=self.user_data_dict,
+                max_combinations=self.max_combinations,
+                use_ml=self.use_ml,
+                combination_method=self.combination_method,
+                custom_pattern=self.custom_pattern,
+                min_length=self.min_length,
+            )
+
+            if passwords:
+                self.progress.emit(f"Saving {len(passwords)} passwords...")
+                generator.save_to_file(passwords, self.output_file, compress=self.compress_output)
+
+            self.finished.emit(passwords, self.output_file, self.compress_output)
+        except Exception as e:
+            self.failed.emit(str(e))
 
 class HelpDialog(QDialog):
     def __init__(self, parent=None, help_text=""):
@@ -31,59 +87,40 @@ class HelpDialog(QDialog):
         self.setLayout(layout)
 
 class PasswordGeneratorGUI(QMainWindow):
-    VERSION = "v1.5.1 Beta"
+    VERSION = "v1.7.0 Beta"
     
     def __init__(self):
         super().__init__()
-        self.current_language = 'en'
+        self.settings = QSettings("V7lthronyx", "DICTIONARY")
+        self.current_language = self.settings.value("language", "en")
+        saved_theme = self.settings.value("theme", Theme.DEFAULT)
+        if saved_theme in Theme.names():
+            Theme.set_theme(saved_theme)
         self.translations = TRANSLATIONS
+        self._worker = None
         self.initUI()
         self.add_version_label()
 
+    def apply_theme(self, name: str = None):
+        if name:
+            Theme.set_theme(name)
+            try:
+                self.settings.setValue("theme", name)
+            except Exception:
+                pass
+        self.setStyleSheet(Theme.get_stylesheet())
+        if hasattr(self, 'version_label'):
+            self.version_label.setStyleSheet(
+                f"QLabel {{ color: {Theme.palette()['accent']}; font-size: 10px;"
+                " font-style: italic; padding: 2px; }"
+            )
+
+    def onThemeChanged(self, _index):
+        self.apply_theme(self.themeSelect.currentText())
+
     def initUI(self):
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #1a1a1a;
-            }
-            QWidget {
-                background-color: #1a1a1a;
-                color: #00ff00;
-                font-family: 'Courier';
-            }
-            QLabel {
-                color: #00ff00;
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QTextEdit, QLineEdit {
-                background-color: #000000;
-                border: 1px solid #00ff00;
-                color: #00ff00;
-                font-family: 'Courier';
-                padding: 5px;
-            }
-            QPushButton {
-                background-color: #000000;
-                color: #00ff00;
-                border: 1px solid #00ff00;
-                padding: 5px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #00ff00;
-                color: #000000;
-            }
-            QCheckBox {
-                color: #00ff00;
-            }
-            QCheckBox::indicator {
-                border: 1px solid #00ff00;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #00ff00;
-            }
-        """)
-        
+        self.apply_theme()
+
         self.setWindowTitle(self.tr(self.current_language, 'title'))
         self.setGeometry(100, 100, 900, 700)
 
@@ -99,7 +136,16 @@ class PasswordGeneratorGUI(QMainWindow):
         self.helpButton = QPushButton(self.tr(self.current_language, 'help_button'))
         self.helpButton.clicked.connect(self.showHelp)
         top_buttons.addWidget(self.helpButton)
-        
+
+        top_buttons.addStretch()
+        self.themeLabel = QLabel(self.tr(self.current_language, 'theme_label'))
+        top_buttons.addWidget(self.themeLabel)
+        self.themeSelect = QComboBox()
+        self.themeSelect.addItems(Theme.names())
+        self.themeSelect.setCurrentText(Theme.current())
+        self.themeSelect.currentIndexChanged.connect(self.onThemeChanged)
+        top_buttons.addWidget(self.themeSelect)
+
         layout.addLayout(top_buttons)
 
         header = QLabel(self.tr(self.current_language, 'header'))
@@ -240,17 +286,13 @@ Just type any information you know:
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     def add_version_label(self):
-        version_label = QLabel(f"Version {self.VERSION}")
-        version_label.setStyleSheet("""
-            QLabel {
-                color: #32CD32;
-                font-size: 10px;
-                font-style: italic;
-                padding: 2px;
-            }
-        """)
-        version_label.setAlignment(Qt.AlignRight)
-        self.statusBar().addPermanentWidget(version_label)
+        self.version_label = QLabel(f"Version {self.VERSION}")
+        self.version_label.setStyleSheet(
+            f"QLabel {{ color: {Theme.palette()['accent']}; font-size: 10px;"
+            " font-style: italic; padding: 2px; }"
+        )
+        self.version_label.setAlignment(Qt.AlignRight)
+        self.statusBar().addPermanentWidget(self.version_label)
 
     def browseDatasets(self):
         options = QFileDialog.Options()
@@ -261,15 +303,12 @@ Just type any information you know:
     def generatePasswords(self):
         if not self.validateInputs():
             return
-            
+
+        if self._worker is not None:
+            QMessageBox.information(self, "Busy", "A generation is already running.")
+            return
+
         try:
-            self.outputDisplay.clear()
-            self.outputDisplay.append("Starting password generation process...")
-            QApplication.processEvents()
-
-            if not self.validateInputs():
-                return
-
             user_data = self.userDataInput.toPlainText()
             datasets = [ds.strip() for ds in self.datasetInput.text().split(';') if ds.strip()]
             max_combinations = int(self.maxInput.text())
@@ -282,57 +321,72 @@ Just type any information you know:
             custom_pattern = self.patternInput.text() if combination_method == 'custom' else ''
 
             if self.estimateSizeCheckBox.isChecked():
-                self.estimatePasswordListSize(user_data, max_combinations)
+                self.estimatePasswordListSize(user_data, max_combinations, combination_method, custom_pattern)
                 return
-
-            self.outputDisplay.append("Initializing password generator...")
-            QApplication.processEvents()
-            
-            generator = DictionaryGenerator(base_datasets=datasets)
-            
-            if use_ml:
-                self.outputDisplay.append("Loading/training ML model...")
-                QApplication.processEvents()
-                generator.load_or_train_model()
 
             user_data_dict = self.process_user_input(user_data)
             if not user_data_dict:
                 QMessageBox.warning(self, "Warning", "No valid user data provided.")
                 return
 
-            self.outputDisplay.append("Generating passwords...")
-            QApplication.processEvents()
-            
-            passwords = generator.generate_personalized_list(
-                user_data=user_data_dict,
-                max_combinations=max_combinations,
-                use_ml=use_ml,
-                combination_method=combination_method,
-                custom_pattern=custom_pattern,
-                min_length=min_length
-            )
+            self.outputDisplay.clear()
+            self.outputDisplay.append("Starting password generation process...")
+            self.generateButton.setEnabled(False)
+            self.generateButton.setText("Generating...")
 
-            if passwords:
-                generator.save_to_file(passwords, output_file, compress=compress_output)
-                self.outputDisplay.clear()
-                self.outputDisplay.append(f"Generated {len(passwords)} passwords.")
-                self.outputDisplay.append("\nSample passwords:")
-                for pwd in passwords[:10]:
-                    self.outputDisplay.append(pwd)
-                self.outputDisplay.append(f"\nAll passwords saved to: {output_file}")
-                
-                if compress_output:
-                    self.outputDisplay.append(f"File has been compressed as: {output_file}.gz")
-            else:
-                self.outputDisplay.append("No passwords were generated.")
+            # Run on a background thread: generate_personalized_list() scores
+            # every candidate with zxcvbn and load_or_train_model() can train
+            # an LSTM model, either of which can run long enough to freeze
+            # the window if done on the GUI thread.
+            self._worker = GenerationWorker(
+                datasets, use_ml, user_data_dict, max_combinations,
+                combination_method, custom_pattern, min_length,
+                output_file, compress_output,
+            )
+            self._worker.progress.connect(self._onGenerationProgress)
+            self._worker.finished.connect(self._onGenerationFinished)
+            self._worker.failed.connect(self._onGenerationFailed)
+            self._worker.start()
 
         except Exception as e:
-            logging.error(f"Error generating passwords: {e}")
+            logging.error(f"Error starting password generation: {e}")
             QMessageBox.critical(
                 self,
                 self.tr(self.current_language, 'error_title'),
                 f"{self.tr(self.current_language, 'error_message')} {str(e)}"
             )
+
+    def _onGenerationProgress(self, message: str):
+        self.outputDisplay.append(message)
+
+    def _resetGenerateButton(self):
+        self.generateButton.setEnabled(True)
+        self.generateButton.setText(self.tr(self.current_language, 'generate_button'))
+        self._worker = None
+
+    def _onGenerationFinished(self, passwords: list, output_file: str, compress_output: bool):
+        self._resetGenerateButton()
+        if passwords:
+            self.outputDisplay.clear()
+            self.outputDisplay.append(f"Generated {len(passwords)} passwords.")
+            self.outputDisplay.append("\nSample passwords:")
+            for pwd in passwords[:10]:
+                self.outputDisplay.append(pwd)
+            self.outputDisplay.append(f"\nAll passwords saved to: {output_file}")
+
+            if compress_output:
+                self.outputDisplay.append(f"File has been compressed as: {output_file}.gz")
+        else:
+            self.outputDisplay.append("No passwords were generated.")
+
+    def _onGenerationFailed(self, message: str):
+        self._resetGenerateButton()
+        logging.error(f"Error generating passwords: {message}")
+        QMessageBox.critical(
+            self,
+            self.tr(self.current_language, 'error_title'),
+            f"{self.tr(self.current_language, 'error_message')} {message}"
+        )
 
     def validateInputs(self) -> bool:
         try:
@@ -372,7 +426,8 @@ Just type any information you know:
             QMessageBox.critical(self, "Error", f"Validation error: {str(e)}")
             return False
 
-    def estimatePasswordListSize(self, user_data: str, max_combinations: int):
+    def estimatePasswordListSize(self, user_data: str, max_combinations: int,
+                                 combination_method: str = 'basic', custom_pattern: str = ''):
         try:
             user_data_dict = self.process_user_input(user_data)
             if not user_data_dict:
@@ -380,7 +435,10 @@ Just type any information you know:
                 return
 
             generator = DictionaryGenerator()
-            estimated_size = generator.estimate_size(user_data_dict, max_combinations)
+            estimated_size = generator.estimate_size(
+                user_data_dict, max_combinations,
+                combination_method=combination_method, custom_pattern=custom_pattern,
+            )
             
             self.outputDisplay.clear()
             self.outputDisplay.append(f"Estimated password list size: {estimated_size:,} passwords")
@@ -396,6 +454,10 @@ Just type any information you know:
 
     def toggleLanguage(self):
         self.current_language = 'fa' if self.current_language == 'en' else 'en'
+        try:
+            self.settings.setValue("language", self.current_language)
+        except Exception:
+            pass
         self.updateTranslations()
 
     def updateTranslations(self):
@@ -417,6 +479,7 @@ Just type any information you know:
         self.combinationLabel.setText(self.tr(self.current_language, 'combination_label'))
         self.patternLabel.setText(self.tr(self.current_language, 'pattern_label'))
         self.patternInput.setPlaceholderText(self.tr(self.current_language, 'pattern_placeholder'))
+        self.themeLabel.setText(self.tr(self.current_language, 'theme_label'))
 
     def tr(self, language: str, key: str) -> str:
         return self.translations[language].get(key, key)

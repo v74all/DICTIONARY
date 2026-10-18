@@ -19,7 +19,7 @@ def display_banner():
                                                                                    
 
 {Fore.RED}╔═══════════════════════════════════════════════════════════════════════╗
-║  {Fore.GREEN}V7lthronyx DICTIONARY v1.5 Beta - Advanced Password Generation Tool{Fore.RED}    ║
+║  {Fore.GREEN}V7lthronyx DICTIONARY v1.7.0 Beta - Advanced Password Generation Tool{Fore.RED}  ║
 ║  {Style.DIM}Developed by V7lthronyx Team | For Security Research Only{Style.RESET_ALL}{Fore.RED}           ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 {Style.RESET_ALL}"""

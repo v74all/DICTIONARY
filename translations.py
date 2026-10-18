@@ -1,6 +1,6 @@
 TRANSLATIONS = {
     'en': {
-        'title': 'V7lthronyx DICTIONARY v1.5 Beta - Password Generator',
+        'title': 'V7lthronyx DICTIONARY v1.7.0 Beta - Password Generator',
         'header': 'Advanced Password Generation Tool',
         'footer': 'For Security Research Only',
         'language_button': 'Switch to Persian',
@@ -43,10 +43,11 @@ TRANSLATIONS = {
         },
         'pattern_label': 'Custom Pattern:',
         'pattern_placeholder': 'Example: [word][number][symbol] or [name]123!',
-        'min_length': 'Minimum Length:'
+        'min_length': 'Minimum Length:',
+        'theme_label': 'Theme:'
     },
     'fa': {
-        'title': 'دیکشنری V7lthronyx نسخه ۱.۵ بتا - تولید رمز عبور',
+        'title': 'دیکشنری V7lthronyx نسخه ۱.۷.۰ بتا - تولید رمز عبور',
         'header': 'ابزار پیشرفته تولید رمز عبور',
         'footer': 'فقط برای تحقیقات امنیتی',
         'language_button': 'تغییر به انگلیسی',
@@ -89,6 +90,7 @@ TRANSLATIONS = {
         },
         'pattern_label': 'الگوی سفارشی:',
         'pattern_placeholder': 'مثال: [کلمه][عدد][نماد] یا [نام]123!',
-        'min_length': 'حداقل طول:'
+        'min_length': 'حداقل طول:',
+        'theme_label': 'پوسته:'
     }
 }
